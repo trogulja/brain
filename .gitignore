@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Obsidian — keep config (app/appearance/core-plugins/graph), ignore session state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+
+# Auto-regenerated indices — recreated by scripts/regenerate_indices.py on demand
+INDEX.md
+lore/INDEX.md
+idea/INDEX.md
+research-link/INDEX.md
+followup/INDEX.md
+job/INDEX.md
+
+# Recall FTS5 index — disposable build cache, rebuilt by scripts/recall.py on demand
+search.db
+search.db-*
+
+# Python virtual environment for embedding/ML scripts
+.venv/
+
+# Python bytecode caches
+__pycache__/
+*.pyc

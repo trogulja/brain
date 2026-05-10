@@ -1,0 +1,29 @@
+# Audit trail for nomic-ai/nomic-bert-2048 trust_remote_code files
+#
+# These two .py files are downloaded from HuggingFace when loading
+# nomic-ai/nomic-embed-text-v1.5 (the embedding model lives in a different
+# HF repo from its custom architecture code). Because trust_remote_code=True
+# means HF executes them as part of model loading, we pin the exact revision
+# and verify file contents match the audited copies before each load.
+#
+# To re-audit (e.g. when bumping):
+#   1. Bump REVISION below to a new commit hash from
+#      https://huggingface.co/nomic-ai/nomic-bert-2048/commits/main
+#   2. Run scripts/build-embeddings.py — it will fail with the new hashes
+#   3. Inspect ~/.cache/huggingface/.../<new-rev>/*.py manually
+#   4. If clean, paste the new hashes below
+#
+# Audit checklist used originally:
+#   - imports: only stdlib + numpy/torch/einops/safetensors/transformers (no requests, urllib, socket, subprocess, pickle direct)
+#   - no eval/exec/__import__/compile/importlib dynamic
+#   - os.* usage only os.path.{join,isfile,exists} for finding cached weights — no os.system/popen/exec/remove
+#   - no env var reads beyond what HF normally needs
+#   - no hardcoded paths to ~/.ssh, ~/.aws, /etc, credential dirs
+#   - no torch.load on user-controlled paths in our flow (we use safetensors)
+
+REVISION=7710840340a098cfb869c4f65e87cf2b1b70caca
+AUDITED_AT=2026-04-27
+AUDITED_BY=trogulja
+
+SHA256_configuration_hf_nomic_bert.py=f7871694b8de3d3df4ac6640313d5799ce323261a0fb90c5cc567ecc34a0039e
+SHA256_modeling_hf_nomic_bert.py=3b24a366c4cc31b869466ccfb7bbb8879e138c97f8de06c83d4fa1e31a21f149

@@ -1,0 +1,14 @@
+// markdownlint-cli2 config for the brain repo.
+// Run: `npx markdownlint-cli2 "**/*.md"` (or via uvx/your tool of choice).
+{
+  "config": {
+    // Long prose lines in table cells and inline links are deliberate.
+    "MD013": false,
+    // Defaults are otherwise fine.
+    "default": true
+  },
+  "ignores": [
+    "node_modules/**",
+    ".venv/**"
+  ]
+}

@@ -1,0 +1,8 @@
+# Top-level dependencies for the brain semantic stack.
+# requirements.txt is generated from this with `pip-compile --generate-hashes`.
+# Hashes pin every wheel/sdist; pip refuses to install if a download doesn't
+# match. Re-generate when bumping any top-level pin (see README install docs).
+sentence-transformers==5.4.1
+einops==0.8.2
+huggingface-hub==1.12.0
+numpy==2.4.4
