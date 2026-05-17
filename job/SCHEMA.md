@@ -1,200 +1,284 @@
 # Job Type Schema
 
-In-flight (and recently-finished) work units. A `job` is a personal workspace for one chunk of work: typically what `/p-craft:pr` produces, or a smaller ad-hoc task. Folder entries by default. Lifecycle is short: `active` → `done` → `archived`.
-
-Collapses earlier reserved types `active-work` (Stjepan's `task.md` pattern) and `job-artifact` (work-unit deliverables) into one. Decided 2026-04-27.
+In-flight (and recently-finished) work units. A `job` is a personal workspace for one chunk of work. Folder entries by default. Lifecycle: `active` → `done` → `archived`.
 
 ## Storage
 
 Folder entry: `~/.brain/job/<slug>/`
 
-Files inside:
+```
+<slug>/
+  <slug>.md          # recipe — L0, always loaded
+  log.md             # work log (one-liners → chunks)
+  notes.md           # research + findings (one-liners → chunks)
+  design.md          # acceptance + decisions + plan (one-liners → chunks)
+  testing.md         # test scenarios + eval prompts + gates
+  discarded.md       # supersession layer — what we backed away from
+  chunks/            # single folder, all chunk prose lives here
+    01-<slug>.md
+    02-<slug>.md
+    ...
+  attachments/       # screenshots, eval outputs, draft PR descriptions
+```
 
-- `<slug>.md`: **recipe** (folder note, frontmatter on this file). Stjepan's `task.md` pattern: what I'm doing, where I left off, next step. Same name as the folder (Obsidian Folder Notes convention).
-- `status.md`: phase tracker + progress checkboxes + free-form notes. Workflow-driven (`/job` writes 7-phase progression; lightweight jobs may be 2-phase).
-- *(any of)* `research.md`, `prd.md`, `qa-plan.md`, `plan/` (folder with `INDEX.md` + chunks), plus free-form additions like `decisions.md`: artifact siblings produced by the workflow. **Schema does not enumerate or restrict siblings.** Whatever the workflow needs lives here. The recipe `<slug>.md` doubles as the idea/folder note; there is no separate `idea.md`.
-- `attachments/`: screenshots, diagrams, eval outputs, draft PR descriptions, etc.
+`INDEX.md` is auto-generated. Never edit by hand. Regenerate via `~/.brain/scripts/regenerate_indices.py --apply`.
 
-The artifact set is **plug-in**, not fixed. Different workflows write different siblings; the schema only locks the recipe + status + frontmatter. See "Relationship with Implementation Skills" below for what each workflow writes.
+Don't pre-create empty parent files or `chunks/`. Create them when content exists.
 
-## Frontmatter (on `<slug>.md`)
+## Frontmatter (on recipe `<slug>.md`)
 
 ```yaml
 ---
-type: job                                  # required
-title: <title>                              # required
-created: <YYYY-MM-DD>                       # required
-updated: <YYYY-MM-DD>                       # required
-tags: [<tag>, ...]                          # optional
-
-# job-specific
-status: active                              # required: active | done | archived
-target-repo: <repo>                         # optional: set if the job targets a specific codebase
-related-idea: [[idea/<slug>]]               # optional: wikilink to originating idea, if any
+type: job                          # required
+title: <title>                      # required
+status: active                      # required: active | done | archived
+created: <YYYY-MM-DD>               # required
+updated: <YYYY-MM-DD>               # required
+target-repo: <repo>                 # optional
+related-idea: [[idea/<slug>]]       # optional
+tags: [<tag>, ...]                  # optional
 ---
 ```
 
-### `status` values
+Don't add: `last-commit`, `last-cleanup`, `phase` (phase lives in the recipe body "Where I am now").
 
-- `active`: work is in flight. Recipe and status reflect current progress.
-- `done`: work completed (PR merged, milestone closed, task delivered). Lessons not yet extracted. Stays in-place at `~/.brain/job/<slug>/` and remains discoverable through recall.
-- `archived`: followup happened (durable knowledge extracted to lore, anything else worth keeping pulled out). Folder moves to `~/.brain/job/.archive/<slug>/`.
+Set `related-idea` when the job implements a decided idea.
 
-**Phase** (e.g. p-craft's Idea/Research/Design/Plan/Execute/QA) is **not** a frontmatter field: it's tracked free-form in `status.md` because workflows differ.
+## Recipe structure (`<slug>.md`)
 
-## States and Transitions
-
-```
-active ──→ done ──→ archived
-   │         │
-   └─────────┴─→ (paused: stays active with note in status.md, no separate state)
-```
-
-### Transitions
-
-| Operation | From | To | What happens |
-|---|---|---|---|
-| **Start** | n/a | `active` | Create folder + `<slug>.md` (recipe) + `status.md`. Capture goal, scope, target repo. Add to INDEX. |
-| **Update** | `active` | (same) | Edit recipe and/or `status.md` to reflect new state. Bump `updated` on `<slug>.md`. Add/edit artifact siblings as workflow progresses. |
-| **Complete** | `active` | `done` | Update `status: done` in frontmatter. Note completion summary in `status.md` (what shipped, where it lives, links to PR/merge). Stays at `~/.brain/job/<slug>/`. Move INDEX entry to Done section. |
-| **Followup** | `done` | (still `done`) | Conversational pass: extract durable lessons to `lore` (via `/brain remember` or equivalent), pull anything else worth keeping. After this pass, **archive** is the next step. |
-| **Archive** | `done` | `archived` | Update `status: archived`. Move folder: `~/.brain/job/<slug>/` → `~/.brain/job/.archive/<slug>/`. Update INDEX. Wikilinks `[[job/<slug>]]` should still resolve via the archive path (tooling-side concern). |
-| **Reopen** | `done` \| `archived` | `active` | Update `status: active`. If archived, move folder back from `.archive/`. Note in `status.md` why reopening. Update INDEX. |
-
-### Lifecycle invocations are conversational
-
-The user says "complete the user-export job" or "archive lazy-output-tool: I've extracted everything worth keeping." The LLM:
-
-1. Reads this SCHEMA.md to know transitions
-2. Reads the entry's current state
-3. Performs the transition (frontmatter, `status.md` summary, possible folder move, INDEX regen)
-4. Asks any clarifying questions noted above (e.g. "anything in this job worth pulling into lore before archive?" on Followup)
-5. Reports what changed
-
-No `/job complete`, `/job archive`, etc. skills.
-
-## Sub-file Conventions
-
-### `<slug>.md` (recipe / folder note) format
+Soft cap: ~80 lines. This is L0. Every line reloads on session start.
 
 ```markdown
 ---
-type: job
-title: <title>
-status: active
-created: <YYYY-MM-DD>
-updated: <YYYY-MM-DD>
-target-repo: <repo>           # optional
+<frontmatter>
 ---
 # <Title>
 
 ## Goal
-What I'm doing and why. 1-3 sentences.
+1-3 sentences. What and why.
 
-## Scope
-- In: <what's in>
-- Out: <what's explicitly out>
+## Invariants
+- INV-1 MUST <constraint>. See [[chunks/NN-<slug>]]
+- INV-2 MUST NOT <constraint>. See [[chunks/NN-<slug>]]
 
-## Where I left off
-Last meaningful state: enough for a fresh session to pick up without rereading the whole folder.
+## Where I am now
+≤3 sentences. Current phase + most recent meaningful state.
 
 ## Next step
-The single next concrete action.
+One concrete action.
 
-## Artifacts
-- [[job/<slug>/research]]: short hook (if exists)
-- [[job/<slug>/prd]]: short hook (if exists)
-- [[job/<slug>/plan]]: short hook (if exists, points to plan/INDEX.md)
-- [[job/<slug>/qa-plan]]: short hook (if exists)
-- [[job/<slug>/decisions]]: short hook (if exists, free-form)
-- [[job/<slug>/status]]: phase tracker
+## Scope
+- In: <bullets>
+- Out: <bullets>
 
 ## Links
-- Idea: [[idea/<slug>]] (if applicable)
-- PR: <url>
-- Task: <url>
+- Idea: [[idea/<slug>]] (optional)
+- PR: <url> (optional)
+- Worktree: <path> (optional)
+- Target repo: <name>
 ```
 
-### `status.md` format
+Spawned TODOs that outlive the job move to `~/.brain/followup/<slug>.md` at chunk-close, not into the recipe.
+
+## Invariants
+
+The truth layer. The small set (typically 3-10) of locked decisions the rest of the job operates under.
+
+**Format.** ADR-style one-liner in the recipe + rationale in a chunk file:
+
+```
+INV-3 MUST keep flag-OFF path byte-identical to develop. See [[chunks/12-flag-off-byte-identity]]
+```
+
+The chunk file holds the "why" — can be long.
+
+**Granularity.** Invariants are the load-bearing set, not every decision. "We picked TypeScript" is a decision (lives in `design.md`). "MUST preserve flag-OFF byte-identity" is an invariant (silent compliance with a contradicting instruction would damage the job).
+
+**When checked.** Direction-change moments, not session-start:
+
+- Before writing a chunk file
+- Before flipping a chunk to `superseded`
+- Before any tool call that modifies code/repo state
+- When the user's instruction appears to reframe scope (judgment call)
+
+**Warning shape.** Conversational. When Claude detects a conflict:
+
+> "This conflicts with INV-7 (no append-across-pagination). Intentional update, or did I misread?"
+
+Three outcomes:
+
+- **False alarm** → proceed, no file change.
+- **Update the invariant** → trigger supersession (below).
+- **User misspoke** → adjust the instruction.
+
+Warnings should stay rare. If they fire on every clarification they lose signal.
+
+**Supersession.** When an invariant changes:
+
+1. Recipe line updated in place.
+2. Old rationale chunk gets `status: superseded, superseded-by: chunks/NN-<slug>` in frontmatter.
+3. New invariant gets a fresh rationale chunk.
+4. Old chunk's one-liner moves from `design.md` → `discarded.md`'s `## Invariants superseded` section.
+
+## Parent files
+
+Soft cap: ~150 lines each. Contents are one-liners + chunk pointers. Prose lives in chunks.
+
+### `log.md`
+
+Flat chronological list of work events (commits, branches, PRs, milestones).
 
 ```markdown
-# <Title>
-**Status:** active | done | archived
-**Started:** <YYYY-MM-DD>
-**Updated:** <YYYY-MM-DD>
+# Work log
 
-## Phase
-<workflow-specific. For `/job`: Idea | Research | Prototype | PRD | Plan | Implementation | QA | Done. For `/p-craft:pr`: Idea | Research | Prototype | Design | Plan | Execute | QA | Done.>
-
-## Progress
-- [x] <completed step>
-- [ ] <next step>
-
-## Notes
-<free-form context, blockers, decisions to revisit, why paused, etc.>
+- [[chunks/01-bootstrap]] 2026-04-28 — bootstrap branch + LazyOutputStore skeleton
+- [[chunks/02-schema-redesign]] 2026-04-29 — query_resources schema redesign
+- ...
 ```
 
-### Artifact siblings
+### `notes.md`
 
-No fixed format. Each implementation skill writes its own shapes:
+Flat list of research + findings. Tag each one-liner.
 
-- `/job` writes `research.md`, `prd.md`, `plan/INDEX.md` + chunks, `qa-plan.md`. Recipe `<slug>.md` doubles as the idea note.
-- `/p-craft:pr` (team-shared) writes `idea.md`, `research.md`, `design.md`, `plan.md`, `decisions.md`.
+```markdown
+# Notes
 
-Both are workflow conventions, not schema requirements. Schema only requires that:
+- [[chunks/05-handle-survey]] [research] handle-architecture industry survey (MCP, Claude Code, LangChain, RubyMine)
+- [[chunks/06-jq-subset]] [finding] jq subset supports `as $var` — original two-call recipe was wrong
+- ...
+```
 
-- Each sibling is a markdown file (or folder with markdown inside)
-- Wikilinks `[[job/<slug>/<sibling>]]` resolve
+### `design.md`
 
-Free-form additions (e.g. `decisions.md` outside the `/p-craft:pr` flow, or `notes.md`, etc.) are allowed at any time.
+Flat list of acceptance criteria, decisions, plan chunks. Tag each one-liner.
 
-## Conventions
+```markdown
+# Design
 
-- **Recipe is the load-bearing file.** `<slug>.md` should always be enough for a fresh session to know what's going on. If it's getting stale, update it before adding new artifacts.
-- **Don't pre-create empty siblings.** Add `prd.md`, `research.md`, etc. only when you actually have content.
-- **`status.md` is the workflow log.** Phase progression, progress checkboxes, blockers, decisions to revisit. Bumps on every meaningful update.
-- **One job per concrete chunk of work.** Roughly: one PR, or one tight feature spanning a few coordinated PRs. Larger scope → use `idea` (planning) or milestone tracking.
-- **Cross-link to idea liberally.** If a job implements a decided idea, `<slug>.md` frontmatter should set `related-idea: [[idea/<slug>]]`.
+- [[chunks/03-flag-off-byte-identity]] [acceptance] flag-OFF path byte-identical to develop
+- [[chunks/04-per-call-interception]] [decision] per-call interception, NOT append-across-pagination
+- [[chunks/07-pr-split-system-instructions]] [plan] PR-1 system-instructions split
+- ...
+```
 
-## Relationship with Idea
+### `testing.md`
 
-Idea tracks the **what and why** before commitment. Job tracks the **how, where, and what-state** during execution.
+Sub-sections by type (scenarios, eval prompts, acceptance gates have different shapes).
 
-- Typical flow: `idea` reaches `Decided` → spawn a `job` (or several) → on `In-Progress`, idea's `status.md` links to the job(s) → job completes → idea closes (`Done`) when the last job archives.
-- A job may exist without an idea (small ad-hoc work).
-- An idea may spawn multiple jobs (substantial work breaks into several).
+```markdown
+# Testing
 
-## Relationship with Lore
+## Scenarios
+- [[chunks/10-bulk-intent-prompt]] bulk-intent vs mirror-engage-tom (7,434 records, 8 lazy calls)
 
-- During job execution, the LLM may read relevant lore for context.
-- On **Followup** (between `done` and `archived`), extract durable lessons into lore via `/brain remember` (or conversational equivalent). Things worth extracting:
-  - Repo conventions or gotchas discovered
-  - Patterns or anti-patterns surfaced during design
-  - Project-specific behavior that isn't documented elsewhere
-- Lore never references jobs. Provenance is via raw session files (`~/.brain/lore/raw/...`), not via job wikilinks.
+## Eval prompts
+- [[chunks/11-regression-smoke]] regression-smoke carry-overs
 
-## Relationship with Implementation Skills (`/job`, p-craft, milestone, etc.)
+## Acceptance gates
+- [[chunks/12-input-budget]] re-run chunk-34 prompt: per-turn input < 0.5K
+```
 
-- **`/job`** (personal, primary): writes `research.md`, `prd.md`, `plan/INDEX.md` + chunks, `qa-plan.md`, plus `status.md` and the recipe. Replaces `/p-craft:pr` for personal work. See `~/.claude/skills/job/SKILL.md` for the full phase model.
-- **`/p-craft:pr`** (team-shared): writes `idea.md`, `research.md`, `design.md`, `plan.md`, `decisions.md` into `~/.brain/job/<slug>/`. (Skill needs migration; currently writes to `<repo>/docs/features/<slug>/`.)
+### `discarded.md`
+
+Sub-sections by reversal type. Captures things that were *committed-to* and then *reversed*. Upfront rejections (considered and not picked) belong inside the deciding chunk, not here.
+
+```markdown
+# Discarded
+
+## Decisions reversed
+- [[chunks/01-handle-architecture]] handle architecture (superseded 2026-05-15 by [[chunks/04-per-call-interception]])
+
+## Scope changes
+- [[chunks/02-read-file-from-url-in-scope]] read_file_from_url in-scope (dropped 2026-05-03; revived as [[job/read-file-from-url]])
+
+## Plan retired
+- [[chunks/25-pr2-description-rewrite]] PR-2 description rewrite (retired 2026-05-07; replaced by chunks 32-35)
+
+## Invariants superseded
+- [[chunks/15-no-append-across-pagination]] INV-2 append-across-pagination (superseded 2026-05-15 by [[chunks/40-per-call-only]])
+```
+
+## Chunks
+
+Single folder. All chunk prose lives here. No size cap on individual chunks (archival layer; load by id).
+
+**Numbering.** Global, monotonic across the job's lifetime. `chunks/01-<slug>.md`, `chunks/02-<slug>.md`, ... Don't renumber on supersession or retirement — the sequence is append-only.
+
+**Filename slug.** Short, kebab-case, descriptive. The number anchors order; the slug aids recall.
+
+**Frontmatter.**
+
+```yaml
+---
+type: chunk                         # required
+chunk-type: log | research | finding | acceptance | decision | plan | testing | invariant-rationale  # required
+title: <short title>                # required
+status: accepted | superseded | retired  # required
+created: <YYYY-MM-DD>               # required
+updated: <YYYY-MM-DD>               # required
+superseded-by: chunks/NN-<slug>     # required iff status == superseded
+respected: [INV-3, INV-7]           # optional — invariants this chunk operated under
+deferred: [INV-5]                   # optional — invariants this chunk consciously did not enforce
+commit: <sha>                       # log chunks only
+---
+```
+
+**Body.** Free-form prose.
+
+## Chunk-close ritual
+
+User invokes conversationally. Claude executes the steps below (in order):
+
+1. **Invariant check.** Does the proposed chunk content conflict with any active INV? If yes, warn conversationally. Halt unless the user resolves (false alarm / supersede / adjust).
+2. **Write the chunk file.** `chunks/NN-<slug>.md`. Body + full frontmatter.
+3. **Add one-liner to parent.** Picks the right parent file from `chunk-type` (log → log.md, decision → design.md, etc.). ≤80 chars of context after the wikilink.
+4. **Handle supersession.** If this chunk replaces prior ones: flip their frontmatter (`status: superseded, superseded-by: chunks/NN-<slug>`); move their one-liners from parent → correct sub-section of `discarded.md`.
+5. **Update recipe.** Bump `updated:`. Refresh "Where I am now" + "Next step". Update phase line if it changed.
+6. **Soft budget check.** If recipe > ~80 lines or any parent > ~150, call it out (no hard block).
+
+## Supersession
+
+One mechanism applied uniformly across decisions, scope, plan, and invariant rationale (see chunk-close step 4). Superseded chunks stay in `chunks/` and remain readable; nothing is deleted, wikilinks never break.
+
+## Lifecycle transitions
+
+```
+active ──→ done ──→ archived
+   │         │
+   └─────────┴─→ (paused: stays active with note in recipe "Where I am now")
+```
+
+| Operation | From | To | What happens |
+|---|---|---|---|
+| **Start** | n/a | `active` | Create folder + recipe. Goal + initial scope + first invariants. |
+| **Update** | `active` | (same) | Edit recipe + parent files + chunks via chunk-close ritual. Bump `updated:`. |
+| **Complete** | `active` | `done` | Frontmatter `status: done`. Recipe Links section gets PR URL. Stays at `~/.brain/job/<slug>/`. |
+| **Followup** | `done` | (still `done`) | Extract durable lessons → `lore`. Push spawned TODOs → `followup`. After this pass, archive. |
+| **Archive** | `done` | `archived` | Frontmatter `status: archived`. Folder moves to `~/.brain/job/.archive/<slug>/`. |
+| **Reopen** | `done` \| `archived` | `active` | Frontmatter `status: active`. If archived, move back. Note in recipe why reopening. |
+
+Always regenerate the job INDEX after status changes: `~/.brain/scripts/regenerate_indices.py --apply`.
+
+## Relationship with Idea / Lore / Followup
+
+- **Idea** tracks the what-and-why before commitment. Job tracks the how-where-and-state during execution. Typical: idea reaches `Decided` → spawn job → idea links to job(s) → idea closes when last job archives.
+- **Lore** absorbs durable lessons at Followup. Repo conventions, anti-patterns, project-specific gotchas. Via `/brain remember` or conversational equivalent.
+- **Followup** (the brain type) absorbs spawned TODOs that outlive the job. Open follow-ups don't live in the job recipe — they move to `~/.brain/followup/<slug>.md` at chunk-close when surfaced.
+
+## Relationship with Implementation Skills
+
+- **`/job`** (personal, primary): writes the v2 shape. See `~/.claude/skills/job/SKILL.md`.
+- **`/p-craft:pr`** (team-shared): writes the v2 shape.
 - **`/p-milestone:milestone`**: may produce a job-per-PR pattern.
-- Other workflows can plug in: write whatever siblings make sense; the schema doesn't constrain.
+- Other workflows can plug in: write chunks of the relevant types; the schema doesn't constrain.
 
-## INDEX.md format
+## v1 → v2 migration
 
-Auto-generated, grouped by `status`:
+Existing active jobs migrate to v2. Done jobs stay as-is in v1 shape (nothing to gain from rewriting). Migration steps (per active job):
 
-```markdown
-# Job Index
-
-## Active
-- [[job/<slug>]]: <title>: one-line hook (target repo, current phase)
-
-## Done (followup pending)
-- [[job/<slug>]]: <title>: what shipped
-
-## Archived
-- [[job/.archive/<slug>]]: <title>: when archived
-```
-
-One line per job, under ~150 characters. Archive section can be collapsed/elided once it grows large.
+1. Extract invariants from existing `decisions.md` + recipe Scope. Write as INV-N one-liners in recipe + one rationale chunk each.
+2. Walk closed work items. Each becomes a chunk in `chunks/` with appropriate `chunk-type`. Add one-liner to the right parent file.
+3. Walk current `decisions.md`. Live decisions → chunks (chunk-type: decision) + one-liner in `design.md`. Superseded content → chunks (status: superseded) + one-liner in `discarded.md`.
+4. Slim recipe to L0 (~80 lines). Move all narrative out.
+5. Delete v1 artifacts (`status.md`, `prd.md`, `decisions.md`, `findings.md`, `research.md`, `qa-plan.md`, `plan/`) once their content is fully redistributed into v2 shape.
+6. Bump recipe `updated:`. Regenerate INDEX.
