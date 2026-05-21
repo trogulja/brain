@@ -19,6 +19,18 @@ A personal unified knowledge store. Single root, atomic markdown files, type-gro
 
 ## Common Conventions
 
+### Content language
+
+Brain entries are written in **English**. The user's working language is Croatian, but durable knowledge - lore, ideas, research notes, followups - is captured in English. Reasons:
+
+- Embedding model (`nomic-embed-text-v1.5`) is English-focused; mixing Croatian content degrades semantic-search recall on the dominant English content.
+- Cross-references with technical concepts, library names, and tool documentation are English by default - keeping notes in the same language avoids translation friction.
+- Future LLM consumers (recall, summarization, agent context loading) work better on a single-language corpus.
+
+Exceptions: when the topic itself is the Croatian language (`lore/croatian-pronoun-order.md`), Croatian phrases appear inline as data. The surrounding lore is still written in English.
+
+Conversational input from the user may be Croatian (chat, messages). Translate the durable distillation to English before persisting.
+
 ### Slug format
 
 - kebab-case ASCII, lowercase, hyphenated

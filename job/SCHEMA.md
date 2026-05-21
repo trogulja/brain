@@ -1,6 +1,10 @@
 # Job Type Schema
 
-In-flight (and recently-finished) work units. A `job` is a personal workspace for one chunk of work. Folder entries by default. Lifecycle: `active` → `done` → `archived`.
+A `job` is the long-lived personal workspace for **a feature or initiative** — typically multiple milestones, multiple PRs, persisting across many sessions until the feature is genuinely complete (or abandoned). Folder entries by default. Lifecycle: `active` → `done` → `archived`.
+
+**Job ≠ single PR.** A job that ships one PR and never reopens is a degenerate case, not the default. The normal flow: M1 ships → job stays `active` with M1 added to Links and "Where I am now" noted as *between milestones* → M2 picked up → M2 ships → repeat. The recipe is the **source of truth** for "what's the state of this feature?" — current iteration, what's queued, multiple PRs accumulated in Links.
+
+The schema compactions (chunks absorbing prose, soft caps on parents, supersession layer) exist *because* the recipe must stay readable across many milestones without bloat. Don't fight that — leverage it.
 
 ## Storage
 
@@ -73,10 +77,12 @@ One concrete action.
 
 ## Links
 - Idea: [[idea/<slug>]] (optional)
-- PR: <url> (optional)
-- Worktree: <path> (optional)
+- PRs: <url1>, <url2>, ... (accumulate over milestones)
+- Worktree: <path> (current active worktree, if any)
 - Target repo: <name>
 ```
+
+**Multi-milestone recipes.** When a job spans multiple milestones, the recipe accumulates without bloating: each shipped milestone gets a one-line entry in Links (PR URL + log chunk reference); the planned-next milestone goes in "Where I am now" and "Next step"; future-milestone design space (the roadmap of what's queued) lives either inline as a short bullet list in the recipe OR in a dedicated chunk (e.g. `chunks/NN-roadmap.md`) referenced from "Where I am now". The roadmap is *part of the job*, not a sibling `idea/` entry.
 
 Spawned TODOs that outlive the job move to `~/.brain/followup/<slug>.md` at chunk-close, not into the recipe.
 
@@ -244,24 +250,33 @@ One mechanism applied uniformly across decisions, scope, plan, and invariant rat
 
 ```
 active ──→ done ──→ archived
-   │         │
-   └─────────┴─→ (paused: stays active with note in recipe "Where I am now")
+   │
+   └─→ (between-milestones: STAYS active. Note in "Where I am now". This is the normal flow for multi-milestone jobs.)
 ```
+
+**Key principle: `status: done` means "the feature is complete — no further milestones planned."** It does NOT mean "the most recent PR shipped." Most jobs spend most of their lifetime in `active`, walking through multiple milestone arcs. The `done` transition is the rare one.
 
 | Operation | From | To | What happens |
 |---|---|---|---|
 | **Start** | n/a | `active` | Create folder + recipe. Goal + initial scope + first invariants. |
 | **Update** | `active` | (same) | Edit recipe + parent files + chunks via chunk-close ritual. Bump `updated:`. |
-| **Complete** | `active` | `done` | Frontmatter `status: done`. Recipe Links section gets PR URL. Stays at `~/.brain/job/<slug>/`. |
+| **Milestone ship** | `active` | (same — STAYS active) | A PR shipped, but more milestones are planned. Add PR URL to recipe Links. Write a log chunk for the PR-open event. Update "Where I am now" + "Next step" to point at the next milestone. Do NOT flip `status` unless the whole feature is concluded. |
+| **Complete** | `active` | `done` | Frontmatter `status: done` ONLY when no further milestones are planned and the feature is genuinely concluded. Recipe Links section already has accumulated PR URLs from prior milestones. |
 | **Followup** | `done` | (still `done`) | Extract durable lessons → `lore`. Push spawned TODOs → `followup`. After this pass, archive. |
 | **Archive** | `done` | `archived` | Frontmatter `status: archived`. Folder moves to `~/.brain/job/.archive/<slug>/`. |
-| **Reopen** | `done` \| `archived` | `active` | Frontmatter `status: active`. If archived, move back. Note in recipe why reopening. |
+| **Reopen** | `done` \| `archived` | `active` | Rare. Only when a job marked `done` needs unexpected new work (e.g. discovered a follow-on milestone we didn't anticipate). If archived, move back. Note in recipe why reopening. Normal milestone-to-milestone flow should never need this — it's the escape hatch for misclassified completions. |
 
 Always regenerate the job INDEX after status changes: `~/.brain/scripts/regenerate_indices.py --apply`.
 
+### Anti-pattern: flipping `done` after every milestone
+
+If a job's history shows a status oscillation `active → done → active → done → active → ...`, the prior `done` flips were wrong. Each milestone-ship should have kept the status `active` with an update to "Where I am now". The `done` state should be entered at most once per job lifetime (barring genuine reopen-for-unexpected-work cases).
+
+Symptom that catches this in review: the recipe says `status: done` but a sibling `idea/<related-roadmap>` (or any forward-looking design) contains queued milestones. That state is incoherent — fix it by setting status back to `active` and folding the roadmap content into the job.
+
 ## Relationship with Idea / Lore / Followup
 
-- **Idea** tracks the what-and-why before commitment. Job tracks the how-where-and-state during execution. Typical: idea reaches `Decided` → spawn job → idea links to job(s) → idea closes when last job archives.
+- **Idea** tracks the what-and-why **before** commitment. Once a feature has a live job, the job *is* the source of truth — including its forward-looking roadmap of queued milestones. Idea should NOT be used to hold "milestones we're going to do next on a feature that already has an active job" — that's a job-internal concern (recipe + chunks). Idea is for pre-commitment exploration, not active-feature roadmapping. Typical: idea reaches `Decided` → spawn job → idea closes (or stays as the historical "why we started this"); the job carries the feature forward from there.
 - **Lore** absorbs durable lessons at Followup. Repo conventions, anti-patterns, project-specific gotchas. Via `/brain remember` or conversational equivalent.
 - **Followup** (the brain type) absorbs spawned TODOs that outlive the job. Open follow-ups don't live in the job recipe — they move to `~/.brain/followup/<slug>.md` at chunk-close when surfaced.
 
